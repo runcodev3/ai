@@ -1,11 +1,10 @@
 import requests
+import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-import os
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
-
 
 def ask_ai(prompt):
 
@@ -23,25 +22,25 @@ def ask_ai(prompt):
         ]
     }
 
-    response = requests.post(url, headers=headers, json=data)
-    result = response.json()
+    r = requests.post(url, headers=headers, json=data)
+    result = r.json()
 
-    return result["choices"][0]["message"]["content"]
+    text = result["choices"][0]["message"]["content"]
+    model_used = result["model"]
+
+    return f"{text}\n\n🤖 model: {model_used}"
 
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_message = update.message.text
+    user_text = update.message.text
+    reply = ask_ai(user_text)
 
-    ai_reply = ask_ai(user_message)
-
-    await update.message.reply_text(ai_reply)
+    await update.message.reply_text(reply)
 
 
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-app.add_handler(MessageHandler(filters.TEXT, chat))
-
-print("Bot running...")
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
 
 app.run_polling()
